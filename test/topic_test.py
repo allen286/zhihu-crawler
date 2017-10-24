@@ -17,10 +17,12 @@ else:
 topic = client.topic(19551275)
 print(topic.followers_count)
 print(topic.best_answers_count)
+for fol in topic.followers:
+    print(fol.id, fol.name)
 
 #没有提供话题关注者接口，只能获取关注者数目，不能得到具体每位关注者
 #最佳回答者无法获取
-print(type(topic.best_answerers))
+# print(type(topic.best_answerers))
 # for answerer in topic.best_answerers:
 #     print(answerer.id)
 # 报错信息如下
