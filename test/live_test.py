@@ -13,8 +13,8 @@ else:
     client.login_in_terminal()
     client.save_token(TOKEN_FILE)
 
-# 张佳玮 关于阅读的一些微小经验
-live = client.live(896780923079639040)
+# live的id
+live = client.live(890935300405198848)
 for role, badge, people in live.participants:
     print(role, badge.name, people.name, people.id)
 

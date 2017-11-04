@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 获取topic关注者的用户信息
+# 获取live听众的用户信息
 import os
 from zhihu_oauth import ZhihuClient
 from getUser import getUser
