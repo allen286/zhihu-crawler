@@ -11,8 +11,8 @@ const main = {
   open: () => {
     client.connect()
   },
-  insert: (table, row, cb) => {
-    client.query(`insert into ${table} set ?`, row, (err, result) => {
+  insert: (sql, row, cb) => {
+    client.query(sql, row, (err, result) => {
       if (err) {
         throw err
       } else {
@@ -21,7 +21,17 @@ const main = {
       }
     })
   },
-  select: (table, sql, cb) => {
+  update: (sql, cb) => {
+    client.query(sql, (err, result) => {
+      if (err) {
+        throw err
+      } else {
+        // console.log(result)
+        cb && cb(result)
+      }
+    })
+  },
+  select: (sql, cb) => {
     client.query(sql, (err, results, fields) => {
       if (err) {
         throw err
