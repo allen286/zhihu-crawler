@@ -21,16 +21,6 @@ const main = {
       }
     })
   },
-  update: (sql, cb) => {
-    client.query(sql, (err, result) => {
-      if (err) {
-        throw err
-      } else {
-        // console.log(result)
-        cb && cb(result)
-      }
-    })
-  },
   select: (sql, cb) => {
     client.query(sql, (err, results, fields) => {
       if (err) {
