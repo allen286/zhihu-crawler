@@ -1,6 +1,5 @@
 const mysql = require('mysql')
 
-//创建连接  
 const client = mysql.createConnection({
   user: 'root',
   password: 'root',

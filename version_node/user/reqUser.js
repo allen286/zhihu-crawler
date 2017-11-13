@@ -1,3 +1,4 @@
+// 获取用户详细数据
 const https = require('https')
 const conn = require('./connDB')
 const getUserDetails = require('./getUserDetails')
@@ -49,7 +50,7 @@ function reqUser(id, index) {
       console.log(`${id}接口返回错误, 状态码：${res.statusCode}`)
       return
     }
-    console.log(`${options.path}, 状态码：${res.statusCode}`)
+    console.log(`${req.path}, 状态码：${res.statusCode}`)
     // console.log('请求头：', JSON.stringify(res.headers))
     res.setEncoding('utf8')
 

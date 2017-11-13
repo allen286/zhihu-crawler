@@ -1,3 +1,4 @@
+// 用户数据示例
 let res = {
   is_followed: false,
   following_count: 2058,

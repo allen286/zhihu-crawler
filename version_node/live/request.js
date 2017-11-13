@@ -35,7 +35,7 @@ const main = {
       res.on('end', () => {
         body = JSON.parse(body)
         let data = body.data // 对象数组
-        console.log(`${options.hostname + options.path}，获取${data.length}条数据，累计${liveList.length + data.length}条`)
+        console.log(`${req.path}，获取${data.length}条数据，累计${liveList.length + data.length}条`)
         data && data.forEach((item) => {
           //全部live接口和热门live接口数据嵌套层次不一样
           if (item.live && item.object_type === 'live') item = item.live

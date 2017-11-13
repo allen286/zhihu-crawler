@@ -51,7 +51,7 @@ function sendReq(callback) {
       }
 
       let data = body.data || [] // 对象数组
-      console.log(`${options.hostname + options.path}，获取${data.length}条数据，累计${audList.length + data.length}条`)
+      console.log(`${req.path}，获取${data.length}条数据，累计${audList.length + data.length}条`)
       data && data.forEach((item) => {
         let live = getAudience(item)
         audList.push(live)
