@@ -16,10 +16,12 @@ const options = {
     'Cookie': cookieLogin,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2763.0 Safari/537.36',
     'X-Requested-With': 'XMLHttpRequest',
-    'authorization': auth
+    'authorization': auth,
+    'Connection': 'keep-alive',
+    'X-UDID': 'AIBA6ThErgmPTh4hnJf153U2A4vEDIFwfdQ='
   }
 }
-const SELECT_SQL = `SELECT DISTINCT id FROM zhihu_live.${USER_TABLE};`
+const SELECT_SQL = `SELECT DISTINCT id FROM zhihu_live.${USER_TABLE} WHERE give_voteup_count is null;`
 let idList = []
 let count = 0
 
@@ -35,11 +37,12 @@ function cb(res) {
   // 请求用户动态数据
   for (let i = 0; i < idList.length; i++) {
     let id = idList[i]
-    options.path = `/people/${id}/activities?limit=10&after_id=${parseInt(new Date().getTime() / 1000)}&desktop=False`
-    sendReq(count => save2db(count, id, i))
+    options.path = `/people/${id}/activities?limit=100&after_id=${parseInt(new Date().getTime() / 1000)}&desktop=False`
+    setTimeout(() => {
+      sendReq(count => save2db(count, id, i))
+    }, 5000 * i);
   }
 }
-
 
 function sendReq(callback) {
   const req = https.request(options, (res) => {
@@ -71,11 +74,11 @@ function sendReq(callback) {
           count += 1
         }
       })
-      console.log(`${req.path}, count: ${count}`)
 
       let page = body.paging || {}
       if (page.is_end) {
         // 全部爬取完成后执行callback
+        console.log('执行回调，count：', count)
         callback(count)
         count = 0
       } else if (page.next) {

@@ -1,4 +1,4 @@
-let res = require('./data')
+// let res = require('./userData')
 
 function getUserDetails(user) {
   let {
