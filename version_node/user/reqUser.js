@@ -21,7 +21,7 @@ const options = {
 // const USER_TABLE = 'zhihu_live.live_ended_hosts3'
 const ID_TABLE = 'zhihu_live.user_list'
 const USER_TABLE = 'zhihu_live.user_detail'
-const INTERVAL = 2000
+const INTERVAL = 1000
 
 // 建立数据库连接
 conn.open()
@@ -41,8 +41,8 @@ async function cb(res) {
   // 循环id列表爬取每个用户数据, 延时发请求，避免请求过快流量异常导致403
   for (let i = 0; i < idList.length; i++) {
     options.path = `/people/${idList[i]}`
-    await sleep(INTERVAL)
     console.log(`sleep ${INTERVAL}ms`)
+    await sleep(INTERVAL)
     reqUser(i)
   }
 }
@@ -54,12 +54,10 @@ function reqUser(index) {
       return
     }
     console.log(`${req.path}, 状态码：${res.statusCode}`)
-    // console.log('请求头：', JSON.stringify(res.headers))
     res.setEncoding('utf8')
 
     let body = ''
     res.on('data', (chunk) => {
-      // console.log(`BODY: ${chunk}`)
       body += chunk
     })
 

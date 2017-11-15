@@ -33,12 +33,10 @@ function sendReq(callback) {
       return
     }
     console.log('状态码：', res.statusCode)
-    // console.log('请求头：', JSON.stringify(res.headers))
     res.setEncoding('utf8')
 
     let body = ''
     res.on('data', (chunk) => {
-      // console.log(`BODY: ${chunk}`)
       body += chunk
     })
 

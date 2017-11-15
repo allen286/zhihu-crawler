@@ -34,9 +34,9 @@ async function cb(res) {
 
   // 循环id列表爬取每个用户数据, 延时发请求，避免请求过快流量异常导致403
   for (let i = 0; i < idList.length; i++) {
+    console.log('sleep 1000ms')
+    await sleep(1000)
     reqFav(idList[i], i)
-    // await sleep(1000)
-    // console.log('sleep 1000ms')
   }
 }
 
@@ -49,12 +49,10 @@ function reqFav(id, index) {
       return
     }
     console.log(`${id}, 状态码：${res.statusCode}`)
-    // console.log('请求头：', JSON.stringify(res.headers))
     res.setEncoding('utf8')
 
     let body = ''
     res.on('data', (chunk) => {
-      // console.log(`BODY: ${chunk}`)
       body += chunk
     })
 
