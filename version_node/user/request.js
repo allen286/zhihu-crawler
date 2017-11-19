@@ -1,4 +1,4 @@
-// 获取收藏答案数目
+// 获取用户动态，从中提取出送出赞同数
 // 不再用node自带的https模块，改用request包
 const request = require('request')
 const domain = require('domain')
@@ -8,125 +8,125 @@ const conn = require('./connDB')
 const options = require('./options')
 
 const USER_TABLE = 'zhihu_live.user_detail'
+const SELECT_SQL = `SELECT DISTINCT id FROM ${USER_TABLE} WHERE give_voteup_count is null;`
+const UPDATE_SQL = `UPDATE ${USER_TABLE} SET give_voteup_count = ? WHERE id = ?`
+const TIME_OUT = 1000
+const seqIndex = 0
+let idList = []
+let proxyList = []
 
-// 设置代理地址
+// 设置初始代理地址
 options.proxy = 'http://188.166.204.221:8118'
 
 // 建立数据库连接
 conn.open()
 
-let idList = []
-const SELECT_SQL = `SELECT DISTINCT id FROM ${USER_TABLE} WHERE favorite_answer_count is null;`
-
 // 查询live主办人的id列表
 conn.select(SELECT_SQL, cb)
 
-async function cb(res) {
-  // res为RowDataPacket数组，取出其中的hostId字段
+function cb(res) {
   idList = res.map(item => item.id)
-  console.log(`共${idList.length}个举办者`)
+  console.log(`共${idList.length}个用户`)
 
-  var d = domain.create()
-  d.on('error', function (err) {
-    console.error('Error caught by domain: ', err)
-  })
-
-  // 循环id列表爬取每个用户数据, 延时发请求，避免请求过快流量异常导致403
-
-  getProxyList().then(function (proxyList) {
-    let index = 0
-    // while (idList.length > 0) {
-    while (index < 2000) {
-      index += 1
-      let proxyurl = proxyList.shift()
-      proxyList.push(proxyurl)
-      console.log(`${index}, proxy: ${proxyurl}`)
-
-      let d = domain.create()
-      d.on('error', function (err) {
-        console.error('Error caught by domain: ', err)
-      })
-
-      // 循环id列表爬取每个用户数据, 延时发请求，避免请求过快流量异常导致403
-      let id = idList.shift()
-
-      let targetOptions = Object.assign({}, options)
-      targetOptions.proxy = 'http://' + proxyurl
-      targetOptions.uri = `https://api.zhihu.com/people/${id}/collections_v2?limit=100&offset=0`
-
-      // await sleep(1000)
-      // console.log('sleep 1000ms')
-      d.run(() => {
-        request(targetOptions, (err, res, body) => {
-          if (err) {
-            console.log(err)
-            return
-          }
-          if (res.statusCode !== 200) {
-            console.log(`${id}/collections_v2接口返回错误, 状态码：${res.statusCode}`)
-            return
-          }
-          console.log(`${id}, 状态码：${res.statusCode}`)
-
-          try {
-            body = JSON.parse(body)
-          } catch (error) {
-            body = {}
-            console.log(error)
-          }
-
-          const UPDATE_SQL = `UPDATE ${USER_TABLE} SET favorite_answer_count = ? WHERE id = ?`
-          let favData = getFavDetails(body)
-          let closeCb = () => console.log(`第${index + 1}条数据插入成功，${favData}`)
-          // 接口返回时间不一致，如何保证在最后一条插入完成后关闭连接呢？
-          // if (index === idList.length - 1) closeCb = closeWhenLast
-
-          // 插入到数据库中
-          try {
-            conn.insert(UPDATE_SQL, [favData, id], closeCb)
-          } catch (error) {
-            console.log(`第${index + 1}条数据插入失败：${error}`)
-          }
-
-        })
-      })
-
-    }
+  getProxyList().then((proxys) => {
+    proxyList = proxys
+    chooseIp(proxyList)
   }).catch(e => {
     console.log(e)
   })
-
 }
 
-function reqFav(id, index) {
+async function chooseIp(proxyList) {
+  let count = 0
+  let id = idList.shift()
+  let proxyurl = proxyList.shift()
+  let targetOptions = Object.assign({}, options)
+  const d = domain.create()
 
+  d.on('error', (err) => {
+    console.error('Error caught by domain: ', err)
+  })
+
+  proxyList.push(proxyurl) // 循环利用代理ip
+
+  targetOptions.proxy = 'http://' + proxyurl
+  targetOptions.uri = `https://api.zhihu.com/people/${id}/activities?limit=10&after_id=${parseInt(new Date().getTime() / 1000)}&desktop=True`
+
+  // await sleep(TIME_OUT)
+  // console.log(`sleep ${TIME_OUT}ms`)
+
+  d.run(() => {
+    console.log(`切换proxy: ${proxyurl}`)
+    sendReq(actCount => save2db(actCount, id), count, targetOptions)
+  })
 }
 
-function closeWhenLast() {
-  conn.close()
+function sendReq(callback, count, targetOptions) {
+  request(targetOptions, (err, res, body) => {
+    if (err) {
+      console.log(err)
+      // 继续请求？
+      return
+    }
+    if (res.statusCode !== 200) {
+      console.log(`接口请求出错，状态码：${res.statusCode}，${req.path}`)
+      return
+    }
+    console.log(`${req.path}，状态码${res.statusCode}`)
+
+    try {
+      body = JSON.parse(body)
+    } catch (error) {
+      body = {}
+      console.log(error)
+    }
+
+    let data = body.data || [] // 对象数组
+    data && data.forEach(act => {
+      if (act.verb === 'ANSWER_VOTE_UP') {
+        count += 1
+      }
+    })
+
+    let page = body.paging || {}
+    if (page.is_end) {
+      // 全部爬取完成后执行callback
+      callback(count)
+    } else if (page.next) {
+      // 还有下一页的话继续请求
+      setTimeout(() => {
+        console.log(`sleep ${TIME_OUT}ms, count: ${count}`)
+        targetOptions.uri = page.next
+        sendReq(callback, count, targetOptions)
+      }, TIME_OUT)
+    }
+  })
+}
+
+function save2db(actCount, id) {
+  // 插入到数据库中
+  try {
+    conn.insert(UPDATE_SQL, [actCount, id], () => console.log(`第${++seqIndex}条数据插入成功，id: ${id}, count: ${actCount}`))
+  } catch (error) {
+    console.log(`第${++seqIndex}条数据插入失败：${error}，id: ${id}`)
+  }
+
+  if (idList.length > 0) {
+    chooseIp(proxyList)
+  } else {
+    console.log('数据爬取完成')
+  }
 }
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-function getFavDetails(fav) {
-  let result = 0
-  if (fav.data && fav.data.length > 0) {
-    fav.data.forEach(item => result += (item.answer_count || 0))
-  }
-  return result
-}
-
-process.on('uncaughtException', function (er) {
-  console.error("process.on('uncaughtException')", er);
-})
-
 function getProxyList() {
-  var apiURL = 'http://www.66ip.cn/mo.php?sxb=&tqsl=100&port=&export=&ktip=&sxa=&submit=%CC%E1++%C8%A1&textarea=http%3A%2F%2Fwww.66ip.cn%2F%3Fsxb%3D%26tqsl%3D100%26ports%255B%255D2%3D%26ktip%3D%26sxa%3D%26radio%3Dradio%26submit%3D%25CC%25E1%2B%2B%25C8%25A1'
+  const apiURL = 'http://www.66ip.cn/mo.php?sxb=&tqsl=100&port=&export=&ktip=&sxa=&submit=%CC%E1++%C8%A1&textarea=http%3A%2F%2Fwww.66ip.cn%2F%3Fsxb%3D%26tqsl%3D100%26ports%255B%255D2%3D%26ktip%3D%26sxa%3D%26radio%3Dradio%26submit%3D%25CC%25E1%2B%2B%25C8%25A1'
 
   return new Promise((resolve, reject) => {
-    var ipOptions = {
+    const ipOptions = {
       method: 'GET',
       url: apiURL,
       gzip: true,
@@ -141,7 +141,7 @@ function getProxyList() {
 
     }
 
-    request(ipOptions, function (error, res, body) {
+    request(ipOptions, (error, res, body) => {
       try {
         if (error) throw error
         console.log(body)
@@ -150,13 +150,12 @@ function getProxyList() {
           body = iconv.decode(body, 'gbk')
         }
 
-        var ret = body.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,4}/g)
+        const ret = body.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,4}/g)
 
         resolve(ret)
       } catch (e) {
         return reject(e)
       }
     })
-
   })
 }
