@@ -3,13 +3,15 @@ const https = require('https')
 const conn = require('./connDB')
 const options = require('./options')
 
-const LIVE_HOST_TABLE = 'live_ended_hosts3'
+// const USER_TABLE = 'zhihu_live.live_ended_hosts'
+const USER_TABLE = 'zhihu_live.user_detail'
 
 // 建立数据库连接
 conn.open()
 
 let idList = []
-const SELECT_SQL = `SELECT DISTINCT id FROM zhihu_live.${LIVE_HOST_TABLE};`
+const SELECT_SQL = `SELECT DISTINCT id FROM ${USER_TABLE} WHERE favorite_answer_count is null LIMIT 0,2000;`
+const UPDATE_SQL = `UPDATE ${USER_TABLE} SET favorite_answer_count = ? WHERE id = ?`
 
 // 查询live主办人的id列表
 conn.select(SELECT_SQL, cb)
@@ -21,21 +23,26 @@ async function cb(res) {
 
   // 循环id列表爬取每个用户数据, 延时发请求，避免请求过快流量异常导致403
   for (let i = 0; i < idList.length; i++) {
-    await sleep(1000)
-    console.log('sleep 1000ms')
-    reqFav(idList[i], i)
+    let id = idList[i]
+    let count = 0
+    options.path = `/people/${id}/collections_v2?limit=20&offset=0`
+
+    // await sleep(1000)
+    // console.log('sleep 1000ms')
+    reqFav((favCount) => {
+      save2db(favCount, id)
+    }, count)
   }
-}
+} 
 
-function reqFav(id, index) {
-  options.path = `/people/${id}/collections_v2?limit=100&offset=0`
-
+function reqFav(callback, count) {
+  let favCount = count
   const req = https.request(options, (res) => {
     if (res.statusCode !== 200) {
-      console.log(`${id}/collections_v2接口返回错误, 状态码：${res.statusCode}`)
+      console.log(`接口返回错误, 状态码：${res.statusCode}，${req.path}`)
       return
     }
-    console.log(`${id}, 状态码：${res.statusCode}`)
+    console.log(`${req.path}, 状态码：${res.statusCode}`)
     res.setEncoding('utf8')
 
     let body = ''
@@ -47,22 +54,23 @@ function reqFav(id, index) {
       try {
         body = JSON.parse(body)
       } catch (error) {
-        body = {}
+        body = { data: [] }
         console.log(error)
       }
 
-      const UPDATE_SQL = `UPDATE zhihu_live.${LIVE_HOST_TABLE} SET favorite_answer_count = ? WHERE id = ?`
-      let favData = getFavDetails(body)
-      let closeCb = () => console.log(`第${index + 1}条数据插入成功`)
-      // 接口返回时间不一致，如何保证在最后一条插入完成后关闭连接呢？
-      // if (index === idList.length - 1) closeCb = closeWhenLast
+      favCount += getFavDetails(body)
 
-      // 插入到数据库中
-      try {
-        conn.insert(UPDATE_SQL, [favData, id], closeCb)
-      } catch (error) {
-        console.log(`第${index + 1}条数据插入失败：${error}`)
+      // 递归爬取
+      let page = body.paging || {}
+      if (page.is_end || body.data.length < 20) {
+        // 全部爬取完成后执行callback
+        callback(favCount)
+      } else if (page.next) {
+        // 还有下一页的话继续请求
+        options.path = page.next.replace('https://api.zhihu.com', '')
+        reqFav(callback, favCount)
       }
+
     })
   })
 
@@ -86,4 +94,16 @@ function getFavDetails(fav) {
     fav.data.forEach(item => result += (item.answer_count || 0))
   }
   return result
+}
+
+function save2db(favCount, id) {
+  let closeCb = () => console.log(`数据插入成功，${id}，${favCount}`)
+  // 接口返回时间不一致，如何保证在最后一条插入完成后关闭连接呢？
+
+  // 插入到数据库中
+  try {
+    conn.insert(UPDATE_SQL, [favCount, id], closeCb)
+  } catch (error) {
+    console.log(`数据插入失败：${error}`)
+  }
 }

@@ -3,7 +3,6 @@ const auth = 'Bearer Mi4xRU1FNEJnQUFBQUFBZ0VEcE9FU3VDUmNBQUFCaEFsVk51MVQ1V2dDNnJ
 
 const options = {
   host: 'api.zhihu.com',
-  // proxy: 'http://114.215.102.168:8081',
   port: 443,
   // path: '',
   method: 'GET',
