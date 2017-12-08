@@ -1,12 +1,13 @@
 // 获取用户动态，此处只抽取了用户送出赞同数据
 const https = require('https')
 const conn = require('./connDB')
-const options = require('./options')
+let options = require('./options')
+let options2 = require('./options2')
 
 const USER_TABLE = 'zhihu_live.live_ended_hosts'
 const SELECT_SQL = `SELECT DISTINCT id FROM ${USER_TABLE} WHERE give_voteup_count is null;`
 const UPDATE_SQL = `UPDATE ${USER_TABLE} SET give_voteup_count = ? WHERE id = ?`
-const TIME_OUT = 2000
+const TIME_OUT = 0
 let seqIndex = 0
 let idList = []
 
@@ -22,7 +23,11 @@ function cb(res) {
 
   // 请求用户动态数据
   let count = 0
-  let id = idList.shift()
+  let id = idList.pop()
+  // if (id == 'd91eedbbdc600092d7a3152b566aade7') {
+  //   id = idList.pop()
+  // }
+  console.log(id)
 
   setTimeout(() => {
     console.log(`sleep ${TIME_OUT}ms, count: ${count}`)
@@ -34,7 +39,19 @@ function cb(res) {
 function sendReq(callback, count) {
   const req = https.request(options, (res) => {
     if (res.statusCode !== 200) {
-      console.log(`接口请求出错，状态码：${res.statusCode}，${req.path}`)
+      console.log(`接口请求出错，状态码：${res.statusCode}，${options.path}`)
+      if (res.statusCode !== 403) {
+        sendReq(callback, count)
+      } else {
+        // 切换账号
+        let temp = options2
+        temp.path = options.path
+        options2 = options
+        options2.path = ''
+        options = temp
+        // 断点手工输验证码。。继续爬
+        sendReq(callback, count)
+      }
       return
     }
     // console.log(`${req.path}，状态码${res.statusCode}`)
@@ -79,7 +96,7 @@ function sendReq(callback, count) {
     console.error(e)
     sendReq(callback, count)
   })
-  
+
   req.end()
 }
 
@@ -93,7 +110,11 @@ function save2db(actCount, id) {
 
   if (idList.length > 0) {
     let count = 0
-    let id = idList.shift()
+    let id = idList.pop()
+    // if (id == 'd91eedbbdc600092d7a3152b566aade7') {
+    //   id = idList.pop()
+    // }
+    console.log(id)
 
     options.path = `/people/${id}/activities?limit=10&after_id=${parseInt(new Date().getTime() / 1000)}&desktop=True`
     sendReq(actCount => save2db(actCount, id), count)

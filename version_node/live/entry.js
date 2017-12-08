@@ -1,8 +1,8 @@
 const mysql = require('mysql')
 const req = require("./request")
 
-// const TABLE_NAME = 'live_ended_1107'
-const TABLE_NAME = 'live_ongoing_1107'
+const TABLE_NAME = 'live_ended_1208'
+// const TABLE_NAME = 'live_ongoing_1208'
 let errNum = 0
 
 //创建连接  
