@@ -1,20 +1,23 @@
 const mysql = require('mysql')
 const req = require("./request")
 
-const TABLE_NAME = 'live_ended_1208'
-// const TABLE_NAME = 'live_ongoing_1208'
+const TABLE_NAME = 'ended_0307'
+// const TABLE_NAME = 'live_ongoing_0307'
 let errNum = 0
 
 //创建连接  
 const client = mysql.createConnection({
   user: 'root',
-  password: 'root',
+  password: '123456',
   database: 'zhihu_live'
 });
 client.connect()
 
 // 获取接口数据
-req.sendReq((res) => {
+req.sendReq()
+
+// 数据处理函数
+function handleResData (res, cb) {
   console.log(`数据接收完毕, 共收到${res.length}条数据`);
   res.forEach((row, index) => {
     client.query(`insert into ${TABLE_NAME} set ?`, row, (err, result) => {
@@ -33,4 +36,5 @@ req.sendReq((res) => {
       }
     })
   })
-})
+  cb()
+}

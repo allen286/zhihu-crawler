@@ -6,6 +6,7 @@ const api = {
   ended: '/lives/ended?limit=100&offset=0', // 已举办的live，4929场
   ongoing: '/lives/ongoing?limit=100&offset=0' // 尚未举办的live，157场
 }
+// options.path = api.ongoing
 options.path = api.ended
 const liveList = []
 
@@ -25,7 +26,7 @@ const main = {
       res.on('end', () => {
         body = JSON.parse(body)
         let data = body.data // 对象数组
-        console.log(`${req.path}，获取${data.length}条数据，累计${liveList.length + data.length}条`)
+        // console.log(`${req.path}，获取${data.length}条数据，累计${liveList.length + data.length}条`)
         data && data.forEach((item) => {
           //全部live接口和热门live接口数据嵌套层次不一样
           if (item.live && item.object_type === 'live') item = item.live

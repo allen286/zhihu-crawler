@@ -3,7 +3,7 @@ const mysql = require('mysql')
 const client = mysql.createConnection({
   user: 'root',
   password: '123456',
-  database: 'zhihudata'
+  database: 'zhihu_live'
 })
 
 const main = {
